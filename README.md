@@ -49,3 +49,18 @@ bun run build    # build/<os>-<arch>/ にパッケージを作成
 | `proxy.go` | 配信元に TVer のオリジンを付けるローカルプロキシ |
 | `window.go` | ウィンドウの全画面切り替え |
 | `src/` | フロントエンド(TypeScript)。`src/mygo.ts` は `mygo generate` が生成 |
+
+## リリース
+
+`v*` のタグを push すると、GitHub Actions(`.github/workflows/release.yml`)が Windows 用(インストーラと実行ファイル)と macOS 用(`.dmg`、Apple Silicon と Intel の両対応)をビルドして、GitHub のリリースに添付します。
+`main` への push とプルリクエストでは、ビルドの確認だけを行います(リリースは作りません)。
+
+```sh
+# 1. mygo.config.ts の version を上げてコミット
+# 2. 同じ番号のタグを作って push(例: version が 0.2.0 なら v0.2.0)
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+タグと `mygo.config.ts` の version が違うと、ビルドは失敗します。
+署名と公証はしていないので、初回起動時に Windows の SmartScreen や macOS の Gatekeeper の警告が出ます。

@@ -1,0 +1,120 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # MyGo needs no cgo, so Windows is cross-built on Linux (NSIS makes the installer).
+          - { name: Windows, os: ubuntu-latest, platform: windows/amd64, artifact: windows }
+          # Disk images need macOS.
+          - { name: macOS, os: macos-latest, platform: darwin/universal, artifact: macos }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check that the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="$(sed -n 's/.*version: "\([^"]*\)".*/\1/p' mygo.config.ts | head -1)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version in mygo.config.ts (v$version)"
+            exit 1
+          fi
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - name: Check the Go and TypeScript code
+        run: |
+          go vet ./...
+          bun run typecheck
+
+      - name: Install NSIS (Windows installer)
+        if: matrix.name == 'Windows'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+
+      - name: Build
+        run: bun run build -- -platform "${{ matrix.platform }}"
+
+      - name: List the build output
+        shell: bash
+        run: find build -maxdepth 3 | sort
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aozora-${{ matrix.artifact }}
+          if-no-files-found: error
+          path: |
+            build/**/*.dmg
+            build/**/*-setup-*.exe
+            build/**/Aozora.exe
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and attach the files
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Write the checksums and release notes
+        working-directory: release
+        run: |
+          # keep the files flat, whatever folders the artifacts were stored with
+          find . -mindepth 2 -type f -exec mv -t . {} +
+          find . -mindepth 1 -type d -empty -delete
+          ls -l
+          sha256sum * > SHA256SUMS
+          cat > ../notes.md <<'EOF'
+          ### インストールについて
+
+          このビルドは**署名されていません**。初回起動時に警告が出ることがあります。
+
+          - **Windows**: SmartScreen が表示されたら「詳細情報」→「実行」を選びます。
+          - **macOS**: 「開発元を検証できません」と出たら、アプリを右クリックして「開く」を選ぶか、
+            `xattr -dr com.apple.quarantine /Applications/Aozora.app` を実行します。
+
+          `SHA256SUMS` で、ダウンロードしたファイルが壊れていないか確認できます。
+
+          ---
+
+          EOF
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --generate-notes \
+            --verify-tag
