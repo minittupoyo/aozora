@@ -1,13 +1,13 @@
+import "./ui";
 import "@fontsource-variable/google-sans";
 import "@fontsource-variable/noto-sans-jp";
+import { snackbar, type Chip, type TextField } from "./ui";
 import { openPlayer, playerFull } from "./player";
 import { Tver, type Genre, type Item, type Section, type YtdlpInfo } from "./mygo";
 
-const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
+const $ = <T extends Element = HTMLElement>(s: string) => document.querySelector<T>(s)!;
 const view = $("#view");
-const input = $<HTMLInputElement>("#q");
-const clearBtn = $("#clear");
-let snackTimer = 0;
+const input = $<TextField>("#q");
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
   const e = document.createElement(tag);
@@ -17,8 +17,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 }
 
 function card(it: Item): HTMLElement {
-  const b = el("button", "card");
-  const media = el("div", "media");
+  const b = el("mdui-card", "card");
+    const media = el("div", "media");
   if (it.thumbnail) {
     const img = el("img");
     img.loading = "lazy";
@@ -32,6 +32,7 @@ function card(it: Item): HTMLElement {
   const text = el("div", "text");
   text.append(el("div", "t", it.title), el("div", "s", it.subtitle));
   b.append(media, text);
+  b.setAttribute("clickable", "");
   b.onclick = () => (it.type === "series" ? openSeries(it) : openPlayer(it.id, it.title));
   return b;
 }
@@ -54,6 +55,20 @@ function sections(secs: Section[]) {
       return [el("h2", "section-title", s.title), row];
     }),
   );
+}
+
+// A single-choice filter chip; the caller marks the chosen one with `selected`.
+function chip(label: string, onpick: () => void): Chip {
+  const c = el("mdui-chip", undefined, label);
+  c.setAttribute("variant", "filter");
+  c.addEventListener("click", onpick);
+  return c;
+}
+
+function chipSet(...chips: HTMLElement[]) {
+  const set = el("div", "chips");
+  set.append(...chips);
+  return set;
 }
 
 // Views the user can go back to: the nodes (with their handlers) and scroll offset.
@@ -79,7 +94,7 @@ function grid(title: string, items: Item[]) {
   g.append(...items.map(card));
   const head = el("div", "page-header");
   if (history.length) {
-    const back = el("button", "icon-button");
+    const back = el("mdui-button-icon");
     back.ariaLabel = "戻る";
     back.innerHTML = BACK_ICON;
     back.onclick = goBack;
@@ -91,11 +106,7 @@ function grid(title: string, items: Item[]) {
 }
 
 function snack(text: string) {
-  const s = $("#snackbar");
-  s.textContent = text;
-  s.hidden = false;
-  clearTimeout(snackTimer);
-  snackTimer = window.setTimeout(() => (s.hidden = true), 6000);
+  snackbar({ message: text, autoCloseDelay: 6000, closeable: true });
 }
 
 async function load(fn: () => Promise<void>) {
@@ -164,43 +175,37 @@ const showRanking = () => {
   setNav("ranking");
   history.length = 0;
   input.value = "";
-  clearBtn.hidden = true;
   return load(async () => {
     const genres: Genre[] = await Tver.rankingGenres(rankKind);
     if (!genres.length) return empty("ランキングを取得できませんでした");
     if (!genres.some((g) => g.id === rankGenre)) rankGenre = genres[0]!.id;
 
-    const kinds = el("div", "chips");
-    for (const [kind, label] of [["series", "番組ランキング"], ["episode", "エピソードランキング"]] as const) {
-      const b = el("button", "chip", label);
-      b.setAttribute("aria-pressed", String(kind === rankKind));
-      b.onclick = () => {
-        rankKind = kind;
-        showRanking();
-      };
-      kinds.append(b);
-    }
+    const kinds = chipSet(
+      ...([["series", "番組ランキング"], ["episode", "エピソードランキング"]] as const).map(([kind, label]) => {
+        const c = chip(label, () => {
+          rankKind = kind;
+          showRanking();
+        });
+        c.selected = kind === rankKind;
+        return c;
+      }),
+    );
 
-    const chips = el("div", "chips");
     const body = el("div", "ranking-body");
-    const buttons = new Map<string, HTMLButtonElement>();
+    const buttons = new Map<string, Chip>();
     let seq = 0;
     const render = async (id: string) => {
       const mine = ++seq;
       rankGenre = id;
-      buttons.forEach((b, k) => b.setAttribute("aria-pressed", String(k === id)));
+      buttons.forEach((b, k) => (b.selected = k === id));
       const items = await Tver.ranking(rankKind, id);
       if (mine !== seq) return; // a newer genre was picked meanwhile
       const g = el("div", "grid");
       g.append(...items.map(card));
       body.replaceChildren(items.length ? g : el("p", "muted", "ランキングがありません"));
     };
-    for (const g of genres) {
-      const b = el("button", "chip", g.title);
-      b.onclick = () => load(() => render(g.id));
-      buttons.set(g.id, b);
-      chips.append(b);
-    }
+    for (const g of genres) buttons.set(g.id, chip(g.title, () => load(() => render(g.id))));
+    const chips = chipSet(...buttons.values());
     view.replaceChildren(el("h2", "section-title", "ランキング"), kinds, chips, body);
     scrollTo({ top: 0 });
     await render(rankGenre);
@@ -212,7 +217,6 @@ const showCategories = () => {
   setNav("categories");
   history.length = 0;
   input.value = "";
-  clearBtn.hidden = true;
   return load(async () => {
     const all = await getHome();
     const groups = CATEGORIES.map(([id, label]) => ({
@@ -223,13 +227,12 @@ const showCategories = () => {
     })).filter((g) => g.secs.length);
     if (!groups.length) return empty("カテゴリを取得できませんでした");
 
-    const chips = el("div", "chips");
     const body = el("div", "category-body");
-    const buttons: HTMLButtonElement[] = [];
+    const buttons: Chip[] = [];
     let shown = -1;
     const select = (i: number) => {
       shown = i;
-      buttons.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+      buttons.forEach((b, k) => (b.selected = k === i));
       const title = el("h2", "section-title", "ランキング");
       const rankRow = el("div", "row");
       title.hidden = rankRow.hidden = true;
@@ -251,12 +254,8 @@ const showCategories = () => {
         })
         .catch(() => {});
     };
-    groups.forEach((g, i) => {
-      const b = el("button", "chip", `${g.label}  ${g.secs.length}`);
-      b.onclick = () => select(i);
-      buttons.push(b);
-      chips.append(b);
-    });
+    groups.forEach((g, i) => buttons.push(chip(`${g.label}  ${g.secs.length}`, () => select(i))));
+    const chips = chipSet(...buttons);
     select(0);
     view.replaceChildren(el("h2", "section-title", "カテゴリ"), chips, body);
   });
@@ -266,7 +265,7 @@ const showCategories = () => {
 function seasons(title: string, secs: Section[], startWithAll = false) {
   const head = el("div", "page-header");
   if (history.length) {
-    const back = el("button", "icon-button");
+    const back = el("mdui-button-icon");
     back.ariaLabel = "戻る";
     back.innerHTML = BACK_ICON;
     back.onclick = goBack;
@@ -274,12 +273,11 @@ function seasons(title: string, secs: Section[], startWithAll = false) {
   }
   head.append(el("h2", "section-title", title));
 
-  const chips = el("div", "chips");
   const body = el("div", "season-body");
   const ALL = -1;
-  const buttons: HTMLButtonElement[] = [];
+  const buttons: Chip[] = [];
   const select = (i: number) => {
-    buttons.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i + 1)));
+    buttons.forEach((b, k) => (b.selected = k === i + 1));
     body.replaceChildren(
       ...secs.flatMap((s, k) => {
         if (i !== ALL && k !== i) return [];
@@ -290,12 +288,8 @@ function seasons(title: string, secs: Section[], startWithAll = false) {
     );
   };
   const entries: [string, number][] = [["すべて", ALL], ...secs.map((s, k): [string, number] => [s.title, k])];
-  for (const [label, i] of entries) {
-    const b = el("button", "chip", label);
-    b.onclick = () => select(i);
-    buttons.push(b);
-    chips.append(b);
-  }
+  for (const [label, i] of entries) buttons.push(chip(label, () => select(i)));
+  const chips = chipSet(...buttons);
   select(startWithAll ? ALL : 0);
   view.replaceChildren(head, chips, body);
   scrollTo({ top: 0 });
@@ -314,20 +308,18 @@ const SOURCE_LABEL = { managed: "アプリ内のコピーを使用中", path: "P
 function settingsRow(label: string, value: string) {
   const row = el("div", "settings-row");
   row.append(el("div", "settings-label", label), el("div", "settings-value", value));
-  return row;
+  return [document.createElement("mdui-divider"), row];
 }
 
 function showSettings() {
   setNav("settings");
   history.length = 0;
   input.value = "";
-  clearBtn.hidden = true;
 
   const card = el("section", "settings-card");
   const body = el("div", "settings-body");
   const actions = el("div", "settings-actions");
-  const bar = el("div", "linear-progress");
-  bar.append(el("div"));
+  const bar = el("mdui-linear-progress");
   bar.hidden = true;
   card.append(
     el("h2", "settings-title", "yt-dlp"),
@@ -342,16 +334,17 @@ function showSettings() {
   let busy = false;
   const render = (info: YtdlpInfo) => {
     body.replaceChildren(
-      settingsRow("状態", SOURCE_LABEL[info.source as keyof typeof SOURCE_LABEL] ?? info.source),
-      settingsRow("バージョン", info.version || "—"),
-      settingsRow("場所", info.path || "—"),
+      ...settingsRow("状態", SOURCE_LABEL[info.source as keyof typeof SOURCE_LABEL] ?? info.source),
+      ...settingsRow("バージョン", info.version || "—"),
+      ...settingsRow("場所", info.path || "—"),
     );
-    const install = el("button", "filled-button", info.managed ? "最新版に更新" : "ダウンロード");
+    const install = el("mdui-button", undefined, info.managed ? "最新版に更新" : "ダウンロード");
     install.disabled = busy;
     install.onclick = () => run(() => Tver.ytdlpInstall(), install.textContent!);
     actions.replaceChildren(install);
     if (info.managed) {
-      const remove = el("button", "text-button", "アプリ内のコピーを削除");
+      const remove = el("mdui-button", undefined, "アプリ内のコピーを削除");
+      remove.setAttribute("variant", "text");
       remove.disabled = busy;
       remove.onclick = () => run(() => Tver.ytdlpRemove(), "削除");
       actions.append(remove);
@@ -380,35 +373,51 @@ function showSettings() {
   });
 }
 
-function setNav(page: "home" | "categories" | "ranking" | "search" | "settings") {
-  for (const [id, p] of [["#nav-home", "home"], ["#nav-categories", "categories"], ["#nav-ranking", "ranking"], ["#nav-search", "search"], ["#nav-settings", "settings"]] as const) {
-    if (p === page) $(id).setAttribute("aria-current", "page");
-    else $(id).removeAttribute("aria-current");
+const NAV = [
+  ["home", "ホーム", "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"],
+  ["categories", "カテゴリ", "M4 8h4V4H4zm6 12h4v-4h-4zm-6 0h4v-4H4zm0-6h4v-4H4zm6 0h4v-4h-4zm6-10v4h4V4zm-6 4h4V4h-4zm6 6h4v-4h-4zm0 6h4v-4h-4z"],
+  ["ranking", "ランキング", "M7.5 21H2V9h5.5zm7.25-18h-5.5v18h5.5zM22 11h-5.5v10H22z"],
+  ["search", "検索", "M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"],
+  ["settings", "設定", "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"],
+] as const;
+type Page = (typeof NAV)[number][0];
+
+const OPEN: Record<Page, () => unknown> = {
+  home: () => goHome(),
+  categories: () => showCategories(),
+  ranking: () => showRanking(),
+  search: () => input.focus(),
+  settings: () => showSettings(),
+};
+
+// The rail (wide windows) and the bar (compact windows) carry the same items; CSS shows one.
+const navs = [$<HTMLElement & { value: string }>("#rail"), $<HTMLElement & { value: string }>("#bar")];
+for (const nav of navs) {
+  for (const [page, label, path] of NAV) {
+    const item = el(nav.localName + "-item" as "div", undefined, label);
+    item.setAttribute("value", page);
+    item.insertAdjacentHTML("afterbegin", `<svg slot="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${path}" /></svg>`);
+    item.onclick = () => OPEN[page]();
+    nav.append(item);
   }
+}
+
+function setNav(page: Page) {
+  for (const nav of navs) nav.value = page;
 }
 
 function goHome() {
   input.value = "";
-  clearBtn.hidden = true;
   setNav("home");
   history.length = 0;
   showHome();
 }
 
 $("#home").onclick = goHome;
-$("#nav-home").onclick = goHome;
-$("#nav-categories").onclick = showCategories;
-$("#nav-ranking").onclick = showRanking;
-$("#nav-search").onclick = () => input.focus();
-$("#nav-settings").onclick = showSettings;
-clearBtn.onclick = () => {
-  input.value = "";
-  clearBtn.hidden = true;
-  input.focus();
-};
-input.addEventListener("input", () => (clearBtn.hidden = !input.value));
-$("#search").addEventListener("submit", (e) => {
-  e.preventDefault();
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing) search();
+});
+function search() {
   const q = input.value.trim();
   if (!q) return goHome();
   setNav("search");
@@ -417,12 +426,12 @@ $("#search").addEventListener("submit", (e) => {
     const secs = await Tver.search(q);
     secs.length ? seasons(`「${q}」の検索結果`, secs, true) : empty("見つかりませんでした");
   });
-});
+}
 
 // back: Alt+←, the mouse back button, or Esc (the player handles its own Esc)
 addEventListener("keydown", (e) => {
   if (playerFull() || e.defaultPrevented) return;
-  const typing = e.target instanceof HTMLInputElement;
+  const typing = e.target === input;
   if ((e.key === "ArrowLeft" && e.altKey) || (e.key === "Escape" && !typing)) {
     if (goBack()) e.preventDefault();
   }

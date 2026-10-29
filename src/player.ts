@@ -1,4 +1,5 @@
 import Hls from "hls.js";
+import type { Slider } from "./ui";
 import { Tver } from "./mygo";
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
@@ -24,8 +25,8 @@ const IDLE_MS = 3000;
 
 const root = $("#player");
 const video = $<HTMLVideoElement>("#video");
-const seek = $<HTMLInputElement>("#seek");
-const volume = $<HTMLInputElement>("#volume");
+const seek = $<Slider>("#seek");
+const volume = $<Slider>("#volume");
 const spinner = $("#spinner");
 const steps = $("#steps");
 const status = $("#pstatus");
@@ -49,11 +50,6 @@ function fmt(sec: number) {
   const s = Math.floor(sec % 60);
   const mm = h ? String(m).padStart(2, "0") : String(m);
   return `${h ? h + ":" : ""}${mm}:${String(s).padStart(2, "0")}`;
-}
-
-function setFill(input: HTMLInputElement) {
-  const max = Number(input.max) || 1;
-  input.style.setProperty("--fill", `${(Number(input.value) / max) * 100}%`);
 }
 
 function showStatus(text: string, retry = false) {
@@ -90,16 +86,14 @@ function setVolume(v: number, muted = v === 0) {
 
 function syncVolume() {
   const level = video.muted ? 0 : video.volume;
-  volume.value = String(level);
-  setFill(volume);
+  volume.value = level;
   setIcon($("#mute"), level === 0 ? ICON.muted : ICON.volume);
 }
 
 function syncTime() {
   const d = video.duration;
   if (!scrubbing && Number.isFinite(d) && d > 0) {
-    seek.value = String(Math.round((video.currentTime / d) * 1000));
-    setFill(seek);
+    seek.value = Math.round((video.currentTime / d) * 1000);
   }
   timeLabel.textContent = `${fmt(video.currentTime)} / ${Number.isFinite(d) ? fmt(d) : "--:--"}`;
 }
@@ -278,8 +272,7 @@ export function openPlayer(id: string, title: string) {
   $("#ptitle").textContent = title;
   root.hidden = false;
   root.classList.add("paused");
-  seek.value = "0";
-  setFill(seek);
+  seek.value = 0;
   syncTime();
   wake();
   start();
@@ -321,12 +314,12 @@ speedBtn.onclick = () => {
   const i = SPEEDS.indexOf(video.playbackRate);
   video.playbackRate = SPEEDS[(i + 1) % SPEEDS.length]!;
 };
-volume.oninput = () => setVolume(Number(volume.value));
+volume.oninput = () => setVolume(volume.value ?? 0);
 seek.addEventListener("pointerdown", () => (scrubbing = true));
 seek.addEventListener("pointerup", () => (scrubbing = false));
+seek.addEventListener("change", () => (scrubbing = false));
 seek.oninput = () => {
-  setFill(seek);
-  if (Number.isFinite(video.duration)) video.currentTime = (Number(seek.value) / 1000) * video.duration;
+  if (Number.isFinite(video.duration)) video.currentTime = ((seek.value ?? 0) / 1000) * video.duration;
 };
 
 // surface: click toggles, double click toggles fullscreen
@@ -377,7 +370,7 @@ addEventListener("keydown", (e) => {
       return handled(() => (nativeFull ? void setNativeFull(false) : closePlayer()));
     case " ":
     case "k":
-      if (e.target instanceof HTMLButtonElement) return;
+      if (e.target instanceof HTMLElement && e.target.closest("button, mdui-button, mdui-button-icon")) return;
       return handled(toggle);
     case "ArrowLeft":
     case "j":
