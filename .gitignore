@@ -1,0 +1,9 @@
+node_modules/
+/dist/
+/build/
+/.mygo/
+mygo_windows_*.syso
+
+# local tooling; the material-3 skill is restorable from skills-lock.json
+/.claude/
+/.agents/skills/material-3/

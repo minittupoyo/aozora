@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aozora</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <nav class="rail" aria-label="メインナビゲーション">
+        <button id="nav-home" class="rail-item" aria-current="page">
+          <span class="indicator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg></span>
+          <span>ホーム</span>
+        </button>
+        <button id="nav-categories" class="rail-item">
+          <span class="indicator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4V4H4zm6 12h4v-4h-4zm-6 0h4v-4H4zm0-6h4v-4H4zm6 0h4v-4h-4zm6-10v4h4V4zm-6 4h4V4h-4zm6 6h4v-4h-4zm0 6h4v-4h-4z" /></svg></span>
+          <span>カテゴリ</span>
+        </button>
+        <button id="nav-ranking" class="rail-item">
+          <span class="indicator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 21H2V9h5.5zm7.25-18h-5.5v18h5.5zM22 11h-5.5v10H22z" /></svg></span>
+          <span>ランキング</span>
+        </button>
+        <button id="nav-search" class="rail-item">
+          <span class="indicator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14" /></svg></span>
+          <span>検索</span>
+        </button>
+        <button id="nav-settings" class="rail-item">
+          <span class="indicator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6" /></svg></span>
+          <span>設定</span>
+        </button>
+      </nav>
+
+      <div class="content">
+        <div class="content-inner">
+          <header class="top-app-bar">
+            <button id="home" class="brand" aria-label="ホーム">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+              <span>Aozora</span>
+            </button>
+            <form id="search" class="search-bar" role="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14" /></svg>
+              <input id="q" type="search" placeholder="番組を検索" autocomplete="off" />
+              <button id="clear" type="button" class="icon-button" aria-label="クリア" hidden>
+                <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+              </button>
+            </form>
+          </header>
+          <div id="progress" class="linear-progress" hidden><div></div></div>
+          <main id="view"></main>
+        </div>
+      </div>
+    </div>
+
+    <section id="player" hidden>
+      <video id="video" playsinline autoplay></video>
+
+      <p id="pip-note" class="pip-note" hidden>ピクチャーインピクチャーで再生中</p>
+
+      <div class="loading">
+        <div id="spinner" class="spinner" hidden role="progressbar" aria-label="読み込み中">
+          <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" /></svg>
+        </div>
+
+        <div id="pstatus" class="player-message" role="alert" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z" /></svg>
+          <p id="pstatus-text"></p>
+          <button id="retry" class="tonal-button" hidden>再試行</button>
+        </div>
+
+        <ol id="steps" class="steps" aria-label="再生の準備" hidden></ol>
+      </div>
+
+      <div class="player-controls">
+        <div class="player-top">
+          <button id="close" class="icon-button" aria-label="戻る">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" /></svg>
+          </button>
+          <h1 id="ptitle"></h1>
+        </div>
+
+        <button id="center" class="center-play" aria-label="再生・一時停止">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+        </button>
+
+        <div class="player-bottom">
+          <input id="seek" class="slider" type="range" min="0" max="1000" step="1" value="0" aria-label="シーク" />
+          <div class="player-row">
+            <button id="play" class="icon-button" aria-label="再生">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </button>
+            <button id="back10" class="icon-button" aria-label="10秒戻る">
+              <svg viewBox="0 0 24 24"><path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
+              <span class="n">10</span>
+            </button>
+            <button id="fwd10" class="icon-button" aria-label="10秒進む">
+              <svg viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" /></svg>
+              <span class="n">10</span>
+            </button>
+            <div class="volume">
+              <button id="mute" class="icon-button" aria-label="ミュート">
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9z" /></svg>
+              </button>
+              <input id="volume" class="slider" type="range" min="0" max="1" step="0.05" value="1" aria-label="音量" />
+            </div>
+            <span id="ptime" class="time">0:00 / --:--</span>
+            <span class="spacer"></span>
+            <button id="speed" class="text-button" aria-label="再生速度">1x</button>
+            <button id="mini" class="icon-button" aria-label="ミニプレイヤー">
+              <svg viewBox="0 0 24 24"><path d="M22 3.41 16.71 8.7 20 12h-8V4l3.29 3.29L20.59 2zM3.41 22l5.29-5.29L12 20v-8H4l3.29 3.29L2 20.59z" /></svg>
+            </button>
+            <button id="pip" class="icon-button" aria-label="ピクチャーインピクチャー" hidden>
+              <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2m-2 .02H3V4.97h18z" /></svg>
+            </button>
+            <button id="fullscreen" class="icon-button" aria-label="全画面">
+              <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="snackbar" class="snackbar" role="alert" hidden></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
