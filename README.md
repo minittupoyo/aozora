@@ -1,7 +1,7 @@
 # Aozora
 
 日本のテレビ番組の見逃し配信を見るための、デスクトップクライアントです。
-[MyGo](https://mygo.egoist.dev)(Go + WebView)で作っています。UIは Material Design 3 です。
+[MyGo](https://mygo.egoist.dev)で作っています。UIはネイティブの Material Design 3 Expressive です。
 
 > **非公式・個人利用向けです。** TVer および各放送局とは関係ありません。
 > TVer の公開されていないAPIを利用しているため、仕様変更で突然動かなくなることがあります。
@@ -11,7 +11,7 @@
 
 - ホーム、カテゴリ別ブラウズ、ランキング(番組・エピソード × ジャンル別、50位まで)
 - 検索(番組とエピソードを分けて表示)、シリーズのシーズン別表示
-- 独自のプレイヤー: シーク、10秒スキップ、音量、再生速度、ピクチャーインピクチャー、ミニプレイヤー、ウィンドウ全画面
+- 独自のプレイヤー: シーク、10秒スキップ、音量、再生速度、ピクチャーインピクチャー、ミニプレイヤー、ウィンドウ全画面、キーボード操作
 - 再生準備の進行表示(取得経路、マニフェスト読み込みなど)
 - 設定画面から [yt-dlp](https://github.com/yt-dlp/yt-dlp) を公式リリースからダウンロード・更新(SHA-256 を検証)
 
@@ -20,6 +20,7 @@
 - 再生URLは、まず `yt-dlp` で取得し、失敗したときだけ Brightcove から直接取得します。
   `yt-dlp` は、設定画面で入れたアプリ内のコピーを優先し、なければ `PATH` 上のものを使います。
 - 配信元は TVer 以外のオリジンからのリクエストを拒否するため、映像は `127.0.0.1` のローカルプロキシ経由で再生します。
+- ネイティブUIには動画コーデックがないため、映像だけ WebView(`<video>` と hls.js)で再生し、操作UIはその上にネイティブで重ねています。
 
 ## 必要なもの
 
@@ -42,13 +43,15 @@ bun run build    # build/<os>-<arch>/ にパッケージを作成
 
 | ファイル | 役割 |
 |---|---|
-| `main.go` | ウィンドウの作成 |
-| `tver.go` | TVer のAPI(ホーム、検索、シリーズ、再生URL) |
-| `ranking.go` | ランキング |
+| `main.go`, `app.go` | ウィンドウ、状態、画面遷移 |
+| `screens.go`, `components.go`, `theme.go` | 画面、M3 のコンポーネント、配色・形・書体 |
+| `player.go` | プレイヤー(映像は WebView、操作UIはネイティブ) |
+| `images.go`, `icons.go`, `fonts.go`, `fonts/` | サムネイル、アイコン、フォント(OFL) |
+| `tver.go`, `ranking.go` | TVer のAPI |
 | `ytdlp.go`, `ytdlp_manage.go` | yt-dlp での再生URL取得と、ダウンロード・更新 |
 | `proxy.go` | 配信元に TVer のオリジンを付けるローカルプロキシ |
-| `window.go` | ウィンドウの全画面切り替え |
-| `src/` | フロントエンド(TypeScript)。`src/mygo.ts` は `mygo generate` が生成 |
+| `index.html`, `src/` | プレイヤーのページ。`src/mygo.ts` は `mygo generate` が生成 |
+| `render_test.go` | 各画面の描画テスト。`SHOTS=<dir> go test .` で PNG を出力 |
 
 ## リリース
 

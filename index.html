@@ -1,100 +1,17 @@
 <!doctype html>
-<html lang="ja" class="mdui-theme-auto">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aozora</title>
-    <link rel="stylesheet" href="./src/style.css" />
+    <title>Aozora player</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+    </style>
   </head>
   <body>
-    <mdui-layout class="app">
-      <mdui-navigation-rail id="rail" value="home" alignment="start" aria-label="メインナビゲーション"></mdui-navigation-rail>
-      <mdui-navigation-bar id="bar" value="home" label-visibility="labeled" aria-label="メインナビゲーション"></mdui-navigation-bar>
-
-      <mdui-top-app-bar class="top-app-bar">
-        <mdui-button id="home" class="brand" variant="text" aria-label="ホーム">
-          <svg slot="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-          Aozora
-        </mdui-button>
-        <div id="search" class="search-bar" role="search">
-          <mdui-text-field id="q" variant="filled" type="search" placeholder="番組を検索" clearable autocomplete="off">
-            <svg slot="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14" /></svg>
-          </mdui-text-field>
-        </div>
-        <mdui-linear-progress id="progress" class="progress" hidden></mdui-linear-progress>
-      </mdui-top-app-bar>
-
-      <mdui-layout-main class="content">
-        <main id="view"></main>
-      </mdui-layout-main>
-    </mdui-layout>
-
-    <section id="player" hidden>
-      <video id="video" playsinline autoplay></video>
-
-      <p id="pip-note" class="pip-note" hidden>ピクチャーインピクチャーで再生中</p>
-
-      <div class="loading">
-        <mdui-circular-progress id="spinner" hidden aria-label="読み込み中"></mdui-circular-progress>
-
-        <div id="pstatus" class="player-message" role="alert" hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z" /></svg>
-          <p id="pstatus-text"></p>
-          <mdui-button id="retry" variant="tonal" hidden>再試行</mdui-button>
-        </div>
-
-        <ol id="steps" class="steps" aria-label="再生の準備" hidden></ol>
-      </div>
-
-      <div class="player-controls">
-        <div class="player-top">
-          <mdui-button-icon id="close" aria-label="戻る">
-            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" /></svg>
-          </mdui-button-icon>
-          <h1 id="ptitle"></h1>
-        </div>
-
-        <mdui-button-icon id="center" class="center-play" variant="tonal" aria-label="再生・一時停止">
-          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-        </mdui-button-icon>
-
-        <div class="player-bottom">
-          <mdui-slider id="seek" min="0" max="1000" step="1" value="0" nolabel aria-label="シーク"></mdui-slider>
-          <div class="player-row">
-            <mdui-button-icon id="play" aria-label="再生">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            </mdui-button-icon>
-            <mdui-button-icon id="back10" aria-label="10秒戻る">
-              <svg viewBox="0 0 24 24"><path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
-              <span class="n">10</span>
-            </mdui-button-icon>
-            <mdui-button-icon id="fwd10" aria-label="10秒進む">
-              <svg viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" /></svg>
-              <span class="n">10</span>
-            </mdui-button-icon>
-            <div class="volume">
-              <mdui-button-icon id="mute" aria-label="ミュート">
-                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9z" /></svg>
-              </mdui-button-icon>
-              <mdui-slider id="volume" min="0" max="1" step="0.05" value="1" nolabel aria-label="音量"></mdui-slider>
-            </div>
-            <span id="ptime" class="time">0:00 / --:--</span>
-            <span class="spacer"></span>
-            <mdui-button id="speed" variant="text" aria-label="再生速度">1x</mdui-button>
-            <mdui-button-icon id="mini" aria-label="ミニプレイヤー">
-              <svg viewBox="0 0 24 24"><path d="M22 3.41 16.71 8.7 20 12h-8V4l3.29 3.29L20.59 2zM3.41 22l5.29-5.29L12 20v-8H4l3.29 3.29L2 20.59z" /></svg>
-            </mdui-button-icon>
-            <mdui-button-icon id="pip" aria-label="ピクチャーインピクチャー" hidden>
-              <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2m-2 .02H3V4.97h18z" /></svg>
-            </mdui-button-icon>
-            <mdui-button-icon id="fullscreen" aria-label="全画面">
-              <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z" /></svg>
-            </mdui-button-icon>
-          </div>
-        </div>
-      </div>
-    </section>
-
+    <!-- The page only plays the video. Its controls are drawn natively over it. -->
+    <video id="video" playsinline></video>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
